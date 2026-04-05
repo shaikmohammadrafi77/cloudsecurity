@@ -1,0 +1,20 @@
+{
+    "name": "cloudescurity-root",
+    "version": "1.0.0",
+    "description": "Secure File Storage Platform Root",
+    "scripts": {
+        "start": "npx concurrently \"npm run start-backend\" \"npm run start-frontend\" \"npm run open-browser\"",
+        "start-backend": "cd backend && npm start",
+        "start-frontend": "cd frontend && npm run dev",
+        "open-browser": "npx wait-on http://localhost:3000 && npx open-cli http://localhost:3000"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "open-cli": "^8.0.0",
+        "wait-on": "^7.2.0"
+    },
+    "dependencies": {
+        "axios": "^1.14.0",
+        "mongodb": "^7.1.1"
+    }
+}
