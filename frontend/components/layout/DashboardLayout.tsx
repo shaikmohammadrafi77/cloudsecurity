@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
 import { 
     LayoutDashboard, 
@@ -17,7 +17,9 @@ import {
     HardDrive,
     Trash2,
     Search,
-    Bell
+    Bell,
+    Sun,
+    Moon
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +32,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         storageUsed?: number;
         totalStorageLimit?: number;
     } | null>(null);
+    const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+    const [themeChoice, setThemeChoice] = React.useState<'light' | 'dark'>('dark');
+    const profileMenuRef = React.useRef<HTMLDivElement | null>(null);
 
     const formatSegmentLabel = (segment: string) => {
         return segment
@@ -94,7 +99,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (typeof window !== 'undefined') {
             localStorage.removeItem('user');
         }
+        setProfileMenuOpen(false);
         router.push('/auth/login');
+    };
+
+    const applyThemeChoice = (choice: 'light' | 'dark') => {
+        setThemeChoice(choice);
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('theme', choice);
+        window.dispatchEvent(new CustomEvent('theme-change', { detail: choice }));
     };
 
     React.useEffect(() => {
@@ -142,6 +155,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
     }, []);
 
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const stored = localStorage.getItem('theme');
+        if (stored === 'light' || stored === 'dark') {
+            setThemeChoice(stored);
+        } else {
+            setThemeChoice('dark');
+        }
+        const handleThemeChange = (event: Event) => {
+            const detail = (event as CustomEvent<'light' | 'dark'>).detail;
+            if (detail === 'light' || detail === 'dark') setThemeChoice(detail);
+        };
+        window.addEventListener('theme-change', handleThemeChange);
+        return () => window.removeEventListener('theme-change', handleThemeChange);
+    }, []);
+
+    React.useEffect(() => {
+        if (!profileMenuOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!profileMenuRef.current) return;
+            if (!profileMenuRef.current.contains(event.target as Node)) {
+                setProfileMenuOpen(false);
+            }
+        };
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setProfileMenuOpen(false);
+        };
+        document.addEventListener('click', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [profileMenuOpen]);
+
     return (
         <div className="flex h-screen overflow-hidden bg-background text-foreground font-sans">
             {/* Sidebar */}
@@ -163,6 +211,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                         <input 
                             type="text" 
+                            id="sidebar-search"
+                            name="sidebarSearch"
                             placeholder="Quick search..." 
                             className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
                         />
@@ -243,17 +293,89 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" />
                         </Link>
                         
-                        <Link href="/dashboard/settings" className="flex items-center gap-4 pl-6 border-l border-white/10 group/profile">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-bold group-hover/profile:text-primary transition-colors">{displayName}</p>
-                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider">{accountLabel}</p>
-                            </div>
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-accent to-purple-600 p-[1px] shadow-lg shadow-primary/20 group-hover/profile:scale-105 transition-transform cursor-pointer">
-                                <div className="w-full h-full rounded-[14px] bg-background flex items-center justify-center overflow-hidden">
-                                     <span className="text-lg font-black text-primary">{initials}</span>
+                        <div className="relative" ref={profileMenuRef}>
+                            <button
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setProfileMenuOpen((prev) => !prev);
+                                }}
+                                className="flex items-center gap-4 pl-6 border-l border-white/10 group/profile"
+                                aria-haspopup="menu"
+                                aria-expanded={profileMenuOpen}
+                            >
+                                <div className="text-right hidden sm:block">
+                                    <p className="text-sm font-bold group-hover/profile:text-primary transition-colors">{displayName}</p>
+                                    <p className="text-[10px] text-primary font-bold uppercase tracking-wider">{accountLabel}</p>
                                 </div>
-                            </div>
-                        </Link>
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-accent to-purple-600 p-[1px] shadow-lg shadow-primary/20 group-hover/profile:scale-105 transition-transform cursor-pointer">
+                                    <div className="w-full h-full rounded-[14px] bg-background flex items-center justify-center overflow-hidden">
+                                        <span className="text-lg font-black text-primary">{initials}</span>
+                                    </div>
+                                </div>
+                            </button>
+
+                            <AnimatePresence>
+                                {profileMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                                        className="absolute right-0 mt-3 w-64 rounded-2xl border border-white/10 bg-card/95 backdrop-blur-xl shadow-2xl z-30 p-3"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <div className="px-2 py-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                                            Account
+                                        </div>
+                                        <Link
+                                            href="/dashboard/settings"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-slate-200 hover:bg-white/5 transition-colors"
+                                        >
+                                            Settings
+                                            <span className="text-[10px] text-slate-500">Profile</span>
+                                        </Link>
+
+                                        <div className="mt-3 px-2 py-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                                            Theme
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 px-1">
+                                            <button
+                                                onClick={() => applyThemeChoice('light')}
+                                                className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs transition-colors ${
+                                                    themeChoice === 'light'
+                                                        ? 'bg-primary/20 text-primary'
+                                                        : 'text-slate-300 hover:bg-white/5'
+                                                }`}
+                                            >
+                                                <Sun size={16} />
+                                                Light
+                                            </button>
+                                            <button
+                                                onClick={() => applyThemeChoice('dark')}
+                                                className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs transition-colors ${
+                                                    themeChoice === 'dark'
+                                                        ? 'bg-primary/20 text-primary'
+                                                        : 'text-slate-300 hover:bg-white/5'
+                                                }`}
+                                            >
+                                                <Moon size={16} />
+                                                Dark
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-3 border-t border-white/10 pt-3">
+                                            <button
+                                                onClick={handleLogout}
+                                                className="flex items-center gap-2 px-3 py-2 w-full rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                            >
+                                                <LogOut size={16} />
+                                                Logout
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </header>
 

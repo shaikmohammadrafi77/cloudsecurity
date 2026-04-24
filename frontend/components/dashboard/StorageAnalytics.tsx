@@ -15,23 +15,21 @@ type StorageAnalyticsProps = {
     categories?: StorageCategory[];
 };
 
-const fallbackData: StorageCategory[] = [
-    { name: 'Documents', value: 400, color: '#8b5cf6' },
-    { name: 'Images', value: 300, color: '#3b82f6' },
-    { name: 'Media', value: 300, color: '#ec4899' },
-    { name: 'Others', value: 200, color: '#64748b' },
-];
-
 export default function StorageAnalytics({
-    used = 700,
-    limit = 1000,
-    categories = fallbackData,
+    used = 0,
+    limit = 1024,
+    categories = [],
 }: StorageAnalyticsProps) {
     const safeLimit = limit > 0 ? limit : 1;
     const boundedUsed = Math.max(0, Math.min(used, safeLimit));
     const usagePercent = Math.round((boundedUsed / safeLimit) * 100);
     const remaining = Math.max(0, safeLimit - boundedUsed);
-    const chartData = categories.length > 0 ? categories : fallbackData;
+    const chartData = categories.length > 0
+        ? categories
+        : [
+            { name: 'Used', value: boundedUsed, color: '#8b5cf6' },
+            { name: 'Free', value: remaining, color: '#64748b' },
+        ];
 
     return (
         <div className="glass-card p-6 h-full flex flex-col">
@@ -57,6 +55,7 @@ export default function StorageAnalytics({
                         <Tooltip
                             contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '8px' }}
                             itemStyle={{ color: '#fff' }}
+                            formatter={(value: number, name: string) => [`${value} MB`, name]}
                         />
                     </PieChart>
                 </ResponsiveContainer>

@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme="dark"] {
   --background: 240 10% 3.9%;
   --foreground: 0 0% 98%;
   --primary: 263.4 70% 50.4%;
@@ -19,6 +20,24 @@
   --glass: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
   --radius: 1rem;
+}
+
+[data-theme="light"] {
+  --background: 0 0% 98%;
+  --foreground: 240 10% 10%;
+  --primary: 263.4 70% 50.4%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 240 10% 10%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 8% 46%;
+  --accent: 243.9 75.8% 58.6%;
+  --accent-foreground: 0 0% 98%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 10%;
+  --border: 220 13% 91%;
+  --glass: rgba(15, 23, 42, 0.04);
+  --glass-border: rgba(15, 23, 42, 0.12);
 }
 
 @layer base {
@@ -72,6 +91,31 @@
     radial-gradient(at 100% 0%, hsla(243, 75%, 58%, 0.15) 0px, transparent 50%),
     radial-gradient(at 100% 100%, hsla(280, 70%, 50%, 0.1) 0px, transparent 50%),
     radial-gradient(at 0% 100%, hsla(243, 75%, 58%, 0.1) 0px, transparent 50%);
+}
+
+[data-theme="light"] .gradient-mesh {
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(263, 70%, 50%, 0.12) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, hsla(243, 75%, 58%, 0.08) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, hsla(280, 70%, 50%, 0.06) 0px, transparent 60%),
+    radial-gradient(at 0% 100%, hsla(243, 75%, 58%, 0.06) 0px, transparent 60%);
+}
+
+[data-theme="light"] .glass-card {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .glass-card-hover {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .glass-button {
+  background-color: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
 

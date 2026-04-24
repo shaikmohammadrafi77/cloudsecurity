@@ -45,6 +45,8 @@ export default function RegisterPage() {
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="text"
+                                id="register-name"
+                                name="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 required
@@ -60,6 +62,8 @@ export default function RegisterPage() {
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="email"
+                                id="register-email"
+                                name="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -75,6 +79,8 @@ export default function RegisterPage() {
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="password"
+                                id="register-password"
+                                name="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required

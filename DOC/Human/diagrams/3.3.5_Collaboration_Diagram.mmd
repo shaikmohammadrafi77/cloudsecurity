@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    U[User]
+    UI[Frontend UI]
+    API[Express API]
+    ENC[Encryption Service]
+    S3[(S3 Storage)]
+    DB[(MongoDB)]
+    LOG[Security Log]
+
+    U -- "1: upload file" --> UI
+    UI -- "2: POST /files/upload" --> API
+    API -- "3: encrypt" --> ENC
+    ENC -- "4: encrypted bytes" --> API
+    API -- "5: store blob" --> S3
+    API -- "6: store metadata" --> DB
+    API -- "7: write log" --> LOG
+    API -- "8: response" --> UI
+    UI -- "9: notify" --> U

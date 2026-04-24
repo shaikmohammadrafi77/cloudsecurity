@@ -91,6 +91,8 @@ export default function LoginPage() {
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Authenticator Code</label>
                                 <input
                                     type="text"
+                                    id="login-mfa-token"
+                                    name="mfaToken"
                                     value={mfaToken}
                                     onChange={(e) => setMfaToken(e.target.value)}
                                     maxLength={6}
@@ -131,6 +133,8 @@ export default function LoginPage() {
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                                 <input
                                     type="email"
+                                    id="login-email"
+                                    name="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
@@ -146,6 +150,8 @@ export default function LoginPage() {
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                                 <input
                                     type="password"
+                                    id="login-password"
+                                    name="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required

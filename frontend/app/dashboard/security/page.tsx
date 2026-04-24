@@ -140,6 +140,8 @@ export default function SecurityPage() {
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Verification Code</label>
                                             <input 
                                                 type="text" 
+                                                id="security-2fa-token"
+                                                name="verificationToken"
                                                 placeholder="000000" 
                                                 maxLength={6}
                                                 value={verificationToken}

@@ -94,3 +94,6 @@ npm run build
 
 ## Deployment
 For EC2 or Linux deployments, configure `backend/.env` and run the backend + frontend as systemd services. If you want, I can provide Nginx + HTTPS deployment scripts too.
+
+## Additional Documentation
+- Sample code documentation: `DOC/Human/Sample_Code_Documentation.md`

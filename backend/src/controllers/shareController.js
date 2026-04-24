@@ -98,11 +98,15 @@ const getSharedFile = async (req, res) => {
 
         // Decrypt the buffer
         let decryptedBuffer;
+        const decryptionOptions = {
+            algorithm: file.encryptionAlgorithm,
+            authTag: file.authTag,
+        };
         try {
-            decryptedBuffer = encryptionService.decrypt(encryptedBuffer, file.iv, vaultKey);
+            decryptedBuffer = encryptionService.decrypt(encryptedBuffer, file.iv, vaultKey, decryptionOptions);
         } catch (error) {
             // Fallback for files encrypted with legacy global key
-            decryptedBuffer = encryptionService.decrypt(encryptedBuffer, file.iv, process.env.ENCRYPTION_KEY);
+            decryptedBuffer = encryptionService.decrypt(encryptedBuffer, file.iv, process.env.ENCRYPTION_KEY, decryptionOptions);
         }
 
         res.set({

@@ -36,6 +36,7 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
     const [searchQuery, setSearchQuery] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [selectedEncryptionAlgorithm, setSelectedEncryptionAlgorithm] = useState('aes-256-cbc');
+    const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
     const getApiErrorMessage = (error: any) => {
         return (
@@ -76,6 +77,22 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
     useEffect(() => {
         fetchItems();
     }, [fetchItems]);
+
+    useEffect(() => {
+        if (!openActionMenuId) return;
+        const handleOutsideClick = () => setOpenActionMenuId(null);
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpenActionMenuId(null);
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('click', handleOutsideClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [openActionMenuId]);
 
     const handleCreateFolder = async () => {
         const name = prompt('Folder Name:');
@@ -190,6 +207,25 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
         }
     };
 
+    const handleDownload = async (item: any) => {
+        if (item.type === 'folder') return;
+        try {
+            const response = await api.get(`/files/${item._id}`, { responseType: 'blob' });
+            const url = URL.createObjectURL(response.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = item.originalName || item.name || 'download';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            setErrorMessage(null);
+        } catch (error) {
+            setErrorMessage(getApiErrorMessage(error));
+            console.error('Download failed:', error);
+        }
+    };
+
     const closePreview = () => {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewItem(null);
@@ -203,7 +239,7 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
 
     const handleCreateShare = async () => {
         try {
-            const { data } = await api.post('/share', { 
+            const { data } = await api.post('/share/create', { 
                 fileId: shareItem._id, 
                 ...shareConfig 
             });
@@ -259,6 +295,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                         <input
                             type="text"
+                            id="files-search"
+                            name="filesSearch"
                             placeholder="Search library..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -270,6 +308,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                 {!isTrash && (
                     <div className="flex gap-3">
                         <select
+                            id="files-encryption-algorithm"
+                            name="encryptionAlgorithm"
                             value={selectedEncryptionAlgorithm}
                             onChange={(e) => setSelectedEncryptionAlgorithm(e.target.value)}
                             className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:border-primary/40"
@@ -286,7 +326,7 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                         </button>
                         <label className="glass-button bg-primary text-white flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition-all">
                             <Plus size={18} /> Upload
-                            <input type="file" className="hidden" onChange={handleUpload} />
+                            <input type="file" id="files-upload" name="fileUpload" className="hidden" onChange={handleUpload} />
                         </label>
                     </div>
                 )}
@@ -319,7 +359,7 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
             </div>
 
             {/* Table */}
-            <div className="glass-card-hover rounded-3xl overflow-hidden border border-white/5">
+            <div className="glass-card-hover rounded-3xl overflow-x-auto border border-white/5 w-full max-w-full">
                 <table className="w-full text-left">
                     <thead className="bg-white/[0.02] text-slate-500 text-[10px] uppercase tracking-widest font-bold border-b border-white/5">
                         <tr>
@@ -327,7 +367,7 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                             <th className="px-6 py-5 font-bold">Modified</th>
                             <th className="px-6 py-5 font-bold">Size</th>
                             {!isTrash && <th className="px-6 py-5 font-bold">Privacy</th>}
-                            <th className="px-6 py-5 font-bold text-right">Actions</th>
+                            <th className="px-6 py-5 font-bold text-right min-w-[220px]">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.03]">
@@ -394,8 +434,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                                 )}
                                             </td>
                                         )}
-                                        <td className="px-6 py-5 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                        <td className="px-6 py-5 text-right min-w-[220px] whitespace-nowrap overflow-visible" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex justify-end items-center flex-nowrap gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 shrink-0">
                                                 {isTrash ? (
                                                     <>
                                                         <button 
@@ -437,7 +477,11 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                                         >
                                                             <FolderIcon size={18} />
                                                         </button>
-                                                        <button className="p-2.5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all" title="Download">
+                                                        <button 
+                                                            onClick={() => handleDownload(item)}
+                                                            className="p-2.5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all" 
+                                                            title="Download"
+                                                        >
                                                             <Download size={18} />
                                                         </button>
                                                         <button 
@@ -456,9 +500,85 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                                         </button>
                                                     </>
                                                 )}
-                                                <button className="p-2.5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all">
-                                                    <MoreVertical size={18} />
-                                                </button>
+                                                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenActionMenuId(openActionMenuId === item._id ? null : item._id);
+                                                        }}
+                                                        className="p-2.5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all"
+                                                        title="More actions"
+                                                    >
+                                                        <MoreVertical size={18} />
+                                                    </button>
+                                                    <AnimatePresence>
+                                                        {openActionMenuId === item._id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="absolute right-0 top-full mt-2 w-44 rounded-2xl border border-white/10 bg-[#0d0d14]/95 backdrop-blur shadow-2xl z-20 p-2 text-left"
+                                                            >
+                                                                {isTrash ? (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => { handleRestore(item._id, item.type); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-green-400"
+                                                                        >
+                                                                            Restore
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleDelete(item._id, item.type, true); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-red-400"
+                                                                        >
+                                                                            Delete Permanently
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => { handlePreview(item); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-slate-200"
+                                                                        >
+                                                                            Preview
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleRename(item._id, item.type, item.originalName || item.name); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-slate-200"
+                                                                        >
+                                                                            Rename
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleMove(item._id, item.type); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-slate-200"
+                                                                        >
+                                                                            Move
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleDownload(item); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-slate-200"
+                                                                        >
+                                                                            Download
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { setShareItem(item); setIsShareModalOpen(true); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-slate-200"
+                                                                        >
+                                                                            Share
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleDelete(item._id, item.type); setOpenActionMenuId(null); }}
+                                                                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 text-sm text-red-400"
+                                                                        >
+                                                                            Move to Trash
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
                                             </div>
                                         </td>
                                     </motion.tr>
@@ -567,6 +687,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Password Protection</label>
                                         <input 
                                             type="password" 
+                                            id="share-password"
+                                            name="sharePassword"
                                             placeholder="Optional password" 
                                             value={shareConfig.password}
                                             onChange={(e) => setShareConfig({ ...shareConfig, password: e.target.value })}
@@ -578,6 +700,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Expiration</label>
                                             <input 
                                                 type="date" 
+                                                id="share-expiration"
+                                                name="shareExpiration"
                                                 value={shareConfig.expiresAt}
                                                 onChange={(e) => setShareConfig({ ...shareConfig, expiresAt: e.target.value })}
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-primary/50 transition-all text-sm color-white"
@@ -587,6 +711,8 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Max Uses</label>
                                             <input 
                                                 type="number" 
+                                                id="share-max-downloads"
+                                                name="shareMaxDownloads"
                                                 placeholder="Unlimited" 
                                                 value={shareConfig.maxDownloads || ''}
                                                 onChange={(e) => setShareConfig({ ...shareConfig, maxDownloads: parseInt(e.target.value) || 0 })}
@@ -609,5 +735,3 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
         </div>
     );
 }
-
-

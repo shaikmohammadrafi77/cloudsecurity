@@ -1,0 +1,53 @@
+classDiagram
+    class User {
+        +String name
+        +String email
+        +String password
+        +String role
+        +Number storageUsed
+        +Boolean twoFactorEnabled
+        +String vaultSecret
+        +String vaultSalt
+    }
+
+    class File {
+        +String filename
+        +String originalName
+        +String mimeType
+        +String s3Key
+        +Number size
+        +Boolean isDeleted
+        +String iv
+        +String encryptionAlgorithm
+        +String authTag
+        +Date createdAt
+    }
+
+    class Folder {
+        +String name
+        +String parentFolder
+        +Boolean isDeleted
+        +Date createdAt
+    }
+
+    class ShareLink {
+        +String token
+        +String passwordHash
+        +Date expiresAt
+        +Number maxDownloads
+        +Number downloadCount
+    }
+
+    class SecurityLog {
+        +String action
+        +String details
+        +String ipAddress
+        +String userAgent
+        +Date createdAt
+    }
+
+    User "1" --> "many" File : owns
+    User "1" --> "many" Folder : owns
+    File "1" --> "many" ShareLink : creates
+    User "1" --> "many" SecurityLog : generates
+    Folder "1" --> "many" File : contains

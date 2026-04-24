@@ -60,6 +60,8 @@ export default function ForgotPasswordPage() {
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="email"
+                                id="forgot-email"
+                                name="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required

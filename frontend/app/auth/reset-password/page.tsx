@@ -66,6 +66,8 @@ function ResetPasswordForm() {
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="email"
+                                id="reset-email"
+                                name="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -81,6 +83,8 @@ function ResetPasswordForm() {
                             <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="text"
+                                id="reset-token"
+                                name="token"
                                 value={token}
                                 onChange={(e) => setToken(e.target.value.trim())}
                                 required
@@ -96,6 +100,8 @@ function ResetPasswordForm() {
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="password"
+                                id="reset-password"
+                                name="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
@@ -112,6 +118,8 @@ function ResetPasswordForm() {
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="password"
+                                id="reset-confirm-password"
+                                name="confirmPassword"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
