@@ -1,0 +1,46 @@
+#!/bin/bash
+set -euo pipefail
+
+exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+
+APP_DIR="/opt/cloudsecurity"
+REPO_URL="https://github.com/shaikmohammadrafi77/cloudsecurity.git"
+BRANCH="main"
+
+dnf update -y
+dnf install -y git docker
+
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+# Install Docker Compose plugin (x86_64 / arm64)
+ARCH="$(uname -m)"
+if [ "$ARCH" = "x86_64" ]; then
+  COMPOSE_BIN="docker-compose-linux-x86_64"
+elif [ "$ARCH" = "aarch64" ]; then
+  COMPOSE_BIN="docker-compose-linux-aarch64"
+else
+  echo "Unsupported arch: $ARCH"
+  exit 1
+fi
+
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/${COMPOSE_BIN}" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# Clone app (or pull if already present)
+if [ -d "$APP_DIR/.git" ]; then
+  cd "$APP_DIR"
+  git fetch origin
+  git checkout "$BRANCH"
+  git pull origin "$BRANCH"
+else
+  git clone -b "$BRANCH" "$REPO_URL" "$APP_DIR"
+  cd "$APP_DIR"
+fi
+
+# If your app needs env:
+# cp .env.example .env
+
+docker compose up -d --build
