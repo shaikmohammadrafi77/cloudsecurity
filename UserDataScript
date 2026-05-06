@@ -1,46 +1,39 @@
 #!/bin/bash
-set -euo pipefail
+yum update -y
 
-exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+# Install Git
+yum install -y git
 
-APP_DIR="/opt/cloudsecurity"
-REPO_URL="https://github.com/shaikmohammadrafi77/cloudsecurity.git"
-BRANCH="main"
+# Install Node.js
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+yum install -y nodejs
 
-dnf update -y
-dnf install -y git docker
+# Install PM2
+npm install -g pm2
 
-systemctl enable --now docker
-usermod -aG docker ec2-user
+# Clone Repo
+cd /opt
+git clone https://github.com/shaikmohammadrafi77/cloudsecurity.git
 
-# Install Docker Compose plugin (x86_64 / arm64)
-ARCH="$(uname -m)"
-if [ "$ARCH" = "x86_64" ]; then
-  COMPOSE_BIN="docker-compose-linux-x86_64"
-elif [ "$ARCH" = "aarch64" ]; then
-  COMPOSE_BIN="docker-compose-linux-aarch64"
-else
-  echo "Unsupported arch: $ARCH"
-  exit 1
-fi
+# Backend Setup
+cd /opt/cloudsecurity/backend
+npm install
 
-mkdir -p /usr/local/lib/docker/cli-plugins
-curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/${COMPOSE_BIN}" \
-  -o /usr/local/lib/docker/cli-plugins/docker-compose
-chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+# Frontend Setup
+cd /opt/cloudsecurity/frontend
+npm install
 
-# Clone app (or pull if already present)
-if [ -d "$APP_DIR/.git" ]; then
-  cd "$APP_DIR"
-  git fetch origin
-  git checkout "$BRANCH"
-  git pull origin "$BRANCH"
-else
-  git clone -b "$BRANCH" "$REPO_URL" "$APP_DIR"
-  cd "$APP_DIR"
-fi
+# Start Backend
+cd /opt/cloudsecurity/backend
+pm2 start server.js --name backend
 
-# If your app needs env:
-# cp .env.example .env
+# Build Frontend
+cd /opt/cloudsecurity/frontend
+npm run build
 
-docker compose up -d --build
+# Start Frontend
+pm2 start "npm start" --name frontend
+
+# Save PM2
+pm2 save
+pm2 startup
