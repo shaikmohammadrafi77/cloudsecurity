@@ -108,8 +108,9 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
     };
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files?.length) return;
-        const file = e.target.files[0];
+        const input = e.target;
+        if (!input.files?.length) return;
+        const file = input.files[0];
         const formData = new FormData();
         formData.append('file', file);
         if (currentFolderId) formData.append('folderId', currentFolderId);
@@ -122,6 +123,9 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
         } catch (error) {
             setErrorMessage(getApiErrorMessage(error));
             console.error('Upload failed:', error);
+        } finally {
+            // Allow selecting the same file again (without this, onChange may not fire).
+            input.value = '';
         }
     };
 
@@ -694,6 +698,9 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                             onChange={(e) => setShareConfig({ ...shareConfig, password: e.target.value })}
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-primary/50 transition-all font-sans"
                                         />
+                                        <p className="text-[11px] text-slate-500 pl-1">
+                                            Leave blank only if you want the link to be accessible without a password.
+                                        </p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">

@@ -71,8 +71,37 @@ async function sendPasswordResetEmail({ to, resetUrl, displayName }) {
     });
 }
 
+async function sendLoginOtpEmail({ to, code, displayName, expiresInMinutes = 10 }) {
+    if (!isSmtpConfigured()) {
+        throw new Error('SMTP is not configured. Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS in backend/.env');
+    }
+
+    const fromName = process.env.SMTP_FROM_NAME || 'Cloudescurity';
+    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+
+    const transporter = getTransporter();
+
+    const html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;line-height:1.5">
+            <h2 style="margin-bottom:8px">Your Login Verification Code</h2>
+            <p>Hello ${displayName || 'there'},</p>
+            <p>Use this one-time code to complete your Cloudescurity login:</p>
+            <p style="font-size:28px;letter-spacing:6px;font-weight:700;margin:20px 0;color:#111827">${code}</p>
+            <p>This code expires in ${expiresInMinutes} minutes.</p>
+            <p>If you did not request this login, you can ignore this email.</p>
+        </div>
+    `;
+
+    await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to,
+        subject: 'Your Cloudescurity login code',
+        html,
+    });
+}
+
 module.exports = {
     isSmtpConfigured,
     sendPasswordResetEmail,
+    sendLoginOtpEmail,
 };
-

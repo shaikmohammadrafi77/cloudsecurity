@@ -12,6 +12,10 @@ export default function LoginPage() {
     const [mfaToken, setMfaToken] = useState('');
     const [mfaRequired, setMfaRequired] = useState(false);
     const [mfaUserId, setMfaUserId] = useState('');
+    const [mfaMethod, setMfaMethod] = useState<'authenticator' | 'email'>('authenticator');
+    const [emailOtpAvailable, setEmailOtpAvailable] = useState(false);
+    const [mfaEmailHint, setMfaEmailHint] = useState('');
+    const [emailOtpStatus, setEmailOtpStatus] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const router = useRouter();
@@ -34,6 +38,11 @@ export default function LoginPage() {
             if (data.mfaRequired) {
                 setMfaRequired(true);
                 setMfaUserId(data.userId);
+                setMfaMethod('authenticator');
+                setEmailOtpAvailable(Boolean(data.emailOtpAvailable));
+                setMfaEmailHint(data.emailMasked || data.email || '');
+                setEmailOtpStatus(null);
+                setMfaToken('');
                 setLoading(false);
                 return;
             }
@@ -53,12 +62,31 @@ export default function LoginPage() {
         try {
             const { data } = await api.post('/auth/verify-mfa', { 
                 userId: mfaUserId, 
-                token: mfaToken 
+                token: mfaToken,
+                method: mfaMethod,
             });
             localStorage.setItem('user', JSON.stringify(data));
             router.push('/dashboard');
         } catch (error: any) {
             setErrorMessage(getApiErrorMessage(error, 'Invalid 2FA token'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSendEmailOtp = async () => {
+        if (!mfaUserId) return;
+        setLoading(true);
+        setErrorMessage(null);
+        setEmailOtpStatus(null);
+        try {
+            const { data } = await api.post('/auth/verify-mfa/email/request', {
+                userId: mfaUserId,
+            });
+            setMfaMethod('email');
+            setEmailOtpStatus(data?.message || 'Verification code sent to your email.');
+        } catch (error: any) {
+            setErrorMessage(getApiErrorMessage(error, 'Failed to send email verification code'));
         } finally {
             setLoading(false);
         }
@@ -87,8 +115,57 @@ export default function LoginPage() {
                                 <ShieldCheck className="text-primary w-8 h-8" />
                                 <p className="text-sm font-bold text-primary uppercase tracking-widest text-center">2FA Verification Required</p>
                             </div>
+                            {emailOtpAvailable && (
+                                <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/5 p-2 border border-white/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMfaMethod('authenticator');
+                                            setEmailOtpStatus(null);
+                                        }}
+                                        className={`rounded-lg py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                                            mfaMethod === 'authenticator'
+                                                ? 'bg-primary text-white'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        App Code
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMfaMethod('email')}
+                                        className={`rounded-lg py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                                            mfaMethod === 'email'
+                                                ? 'bg-primary text-white'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Email Code
+                                    </button>
+                                </div>
+                            )}
+                            {mfaMethod === 'email' && emailOtpAvailable && (
+                                <div className="space-y-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSendEmailOtp}
+                                        disabled={loading}
+                                        className="w-full glass-button border-white/10 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                                    >
+                                        {emailOtpStatus ? 'Resend Email Code' : 'Send Email Code'}
+                                    </button>
+                                    {mfaEmailHint && (
+                                        <p className="text-xs text-slate-500 text-center">Code will be sent to {mfaEmailHint}</p>
+                                    )}
+                                    {emailOtpStatus && (
+                                        <p className="text-xs text-green-400 text-center">{emailOtpStatus}</p>
+                                    )}
+                                </div>
+                            )}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Authenticator Code</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                                    {mfaMethod === 'email' ? 'Email Verification Code' : 'Authenticator Code'}
+                                </label>
                                 <input
                                     type="text"
                                     id="login-mfa-token"
@@ -114,7 +191,13 @@ export default function LoginPage() {
                         
                         <button 
                             type="button"
-                            onClick={() => setMfaRequired(false)}
+                            onClick={() => {
+                                setMfaRequired(false);
+                                setMfaMethod('authenticator');
+                                setEmailOtpStatus(null);
+                                setMfaToken('');
+                                setErrorMessage(null);
+                            }}
                             className="w-full text-xs text-slate-500 font-bold uppercase tracking-widest hover:text-white transition-colors py-2"
                         >
                             Back to Login

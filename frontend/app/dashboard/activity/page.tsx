@@ -8,6 +8,7 @@ import api from '@/services/api';
 export default function ActivityPage() {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         fetchLogs();
@@ -17,8 +18,10 @@ export default function ActivityPage() {
         try {
             const { data } = await api.get('/security/logs');
             setLogs(data);
+            setErrorMessage(null);
         } catch (error) {
-            console.error('Failed to fetch activity logs:', error);
+            setLogs([]);
+            setErrorMessage('Unable to load activity logs right now.');
         } finally {
             setLoading(false);
         }
@@ -47,6 +50,11 @@ export default function ActivityPage() {
                 </div>
 
                 <div className="glass-card overflow-hidden border-white/5">
+                    {errorMessage && (
+                        <div className="px-6 py-3 text-xs text-amber-300 border-b border-amber-500/20 bg-amber-500/10">
+                            {errorMessage}
+                        </div>
+                    )}
                     <table className="w-full text-left">
                         <thead className="bg-white/5 text-slate-500 text-[10px] uppercase tracking-widest font-bold border-b border-white/5">
                             <tr>

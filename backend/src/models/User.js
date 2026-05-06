@@ -36,6 +36,19 @@ const userSchema = new mongoose.Schema({
   twoFactorSecret: {
     type: String,
   },
+  mfaEmailOtpHash: {
+    type: String,
+  },
+  mfaEmailOtpExpires: {
+    type: Date,
+  },
+  mfaEmailOtpLastSentAt: {
+    type: Date,
+  },
+  mfaEmailOtpAttempts: {
+    type: Number,
+    default: 0,
+  },
   passwordResetToken: {
     type: String,
   },

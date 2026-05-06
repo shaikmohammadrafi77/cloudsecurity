@@ -43,16 +43,17 @@ const io = socketIo(server, {
 });
 
 // Rate Limiting
+const isProduction = process.env.NODE_ENV === 'production';
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: isProduction ? 100 : 5000,
     message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
 });
 
 // Middleware
-app.use(globalLimiter);
 app.use(helmet({
     crossOriginResourcePolicy: false,
 }));
@@ -75,6 +76,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+app.use(globalLimiter);
 app.use(express.json());
 app.use((err, req, res, next) => {
     if (isJsonBodyParseError(err)) {

@@ -1,7 +1,12 @@
 const { S3Client, HeadBucketCommand, CreateBucketCommand } = require('@aws-sdk/client-s3');
+const { NodeHttpHandler } = require('@smithy/node-http-handler');
 const dotenv = require('dotenv');
 
 dotenv.config();
+
+const S3_CONNECT_TIMEOUT_MS = Number(process.env.AWS_S3_CONNECT_TIMEOUT_MS || 1500);
+const S3_SOCKET_TIMEOUT_MS = Number(process.env.AWS_S3_SOCKET_TIMEOUT_MS || 6000);
+const S3_MAX_ATTEMPTS = Number(process.env.AWS_S3_MAX_ATTEMPTS || (process.env.NODE_ENV === 'production' ? 3 : 1));
 
 const s3Client = new S3Client({
     region: process.env.AWS_REGION || 'us-east-1',
@@ -9,6 +14,11 @@ const s3Client = new S3Client({
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
+    maxAttempts: S3_MAX_ATTEMPTS,
+    requestHandler: new NodeHttpHandler({
+        connectionTimeout: S3_CONNECT_TIMEOUT_MS,
+        socketTimeout: S3_SOCKET_TIMEOUT_MS,
+    }),
 });
 
 const BUCKET_NAME = process.env.AWS_S3_BUCKET;

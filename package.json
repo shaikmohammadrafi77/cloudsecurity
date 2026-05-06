@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "description": "Secure File Storage Platform Root",
     "scripts": {
-        "start": "npx concurrently \"npm run start-backend\" \"npm run start-frontend\" \"npm run open-browser\"",
+        "clean-dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-dev.ps1",
+        "start": "npm run clean-dev && npx concurrently --kill-others-on-fail \"npm run start-backend\" \"npm run start-frontend\" \"npm run open-browser\"",
         "start-backend": "cd backend && npm start",
         "start-frontend": "cd frontend && npm run dev",
         "open-browser": "npx wait-on http://localhost:3000 && npx open-cli http://localhost:3000"

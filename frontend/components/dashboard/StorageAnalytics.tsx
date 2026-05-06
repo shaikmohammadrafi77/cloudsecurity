@@ -55,7 +55,7 @@ export default function StorageAnalytics({
                         <Tooltip
                             contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '8px' }}
                             itemStyle={{ color: '#fff' }}
-                            formatter={(value: number, name: string) => [`${value} MB`, name]}
+                            formatter={(value, name) => [`${value} MB`, name]}
                         />
                     </PieChart>
                 </ResponsiveContainer>

@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { generateSecret, generateURI, verifySync } = require('otplib');
 const securityService = require('../services/securityService');
 const { isMongoUnavailable, dbUnavailableMessage } = require('../utils/mongoError');
-const { sendPasswordResetEmail } = require('../utils/mailer');
+const { isSmtpConfigured, sendPasswordResetEmail, sendLoginOtpEmail } = require('../utils/mailer');
 
 function sendAuthError(res, error) {
     if (isMongoUnavailable(error)) {
@@ -23,10 +23,27 @@ const generateToken = (id) => {
 const isMockMongo = () => process.env.MOCK_MONGO === 'true';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+const MFA_EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
+const MFA_EMAIL_OTP_RESEND_COOLDOWN_MS = 30 * 1000;
+const MFA_EMAIL_OTP_MAX_ATTEMPTS = 5;
 
 function hashResetToken(token) {
     return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
+
+function hashEmailOtp(code) {
+    return crypto.createHash('sha256').update(String(code)).digest('hex');
+}
+
+const QR_OPTIONS = {
+    errorCorrectionLevel: 'H',
+    margin: 2,
+    scale: 8,
+    color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+    },
+};
 
 function createPasswordResetToken() {
     const plainToken = crypto.randomBytes(32).toString('hex');
@@ -43,6 +60,37 @@ function normalizeEmail(value) {
 
 function escapeRegex(text) {
     return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function generateEmailOtpCode() {
+    return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+function maskEmail(email) {
+    const text = String(email || '');
+    const [localPart, domainPart] = text.split('@');
+    if (!localPart || !domainPart) return text;
+    if (localPart.length <= 2) return `${localPart[0] || '*'}*@${domainPart}`;
+    return `${localPart[0]}${'*'.repeat(Math.max(1, localPart.length - 2))}${localPart[localPart.length - 1]}@${domainPart}`;
+}
+
+function buildMfaRequiredPayload(user) {
+    const emailOtpAvailable = isSmtpConfigured();
+    return {
+        mfaRequired: true,
+        email: user.email,
+        userId: user._id,
+        emailMasked: maskEmail(user.email),
+        mfaMethods: emailOtpAvailable ? ['authenticator', 'email'] : ['authenticator'],
+        emailOtpAvailable,
+    };
+}
+
+function isWithinMs(dateValue, durationMs) {
+    if (!dateValue) return false;
+    const t = new Date(dateValue).getTime();
+    if (Number.isNaN(t)) return false;
+    return Date.now() - t < durationMs;
 }
 
 const registerUser = async (req, res) => {
@@ -114,11 +162,7 @@ const loginUser = async (req, res) => {
             const user = mockStore.findByEmail(email);
             if (user && (await mockStore.comparePassword(user, password))) {
                 if (user.twoFactorEnabled) {
-                    return res.json({
-                        mfaRequired: true,
-                        email: user.email,
-                        userId: user._id,
-                    });
+                    return res.json(buildMfaRequiredPayload(user));
                 }
                 await securityService.logAction(user._id, 'LOGIN_SUCCESS', req);
                 return res.json({
@@ -147,11 +191,7 @@ const loginUser = async (req, res) => {
 
         if (user && (await user.comparePassword(password))) {
             if (user.twoFactorEnabled) {
-                return res.json({
-                    mfaRequired: true,
-                    email: user.email,
-                    userId: user._id,
-                });
+                return res.json(buildMfaRequiredPayload(user));
             }
 
             await securityService.logAction(user._id, 'LOGIN_SUCCESS', req);
@@ -186,7 +226,7 @@ const setup2FA = async (req, res) => {
                 label: user.email,
                 secret,
             });
-            const qrCodeUrl = await qrcode.toDataURL(otpauth);
+            const qrCodeUrl = await qrcode.toDataURL(otpauth, QR_OPTIONS);
 
             mockStore.updateUser(req.user._id, { twoFactorSecret: secret });
 
@@ -210,7 +250,7 @@ const setup2FA = async (req, res) => {
             label: user.email,
             secret,
         });
-        const qrCodeUrl = await qrcode.toDataURL(otpauth);
+        const qrCodeUrl = await qrcode.toDataURL(otpauth, QR_OPTIONS);
 
         user.twoFactorSecret = secret;
         await user.save();
@@ -287,31 +327,154 @@ const enable2FA = async (req, res) => {
     }
 };
 
-const verify2FALogin = async (req, res) => {
-    const rawToken = req.body?.token;
-    const token = rawToken != null ? String(rawToken).replace(/\s/g, '') : '';
+const requestEmailMfaCode = async (req, res) => {
+    const { userId } = req.body || {};
+
+    if (!userId) {
+        return res.status(400).json({ message: 'userId is required' });
+    }
+    if (!isSmtpConfigured()) {
+        return res.status(503).json({ message: 'SMTP is not configured for email OTP' });
+    }
 
     if (isMockMongo()) {
         const mockStore = require('../utils/mockAuthStore');
-        const { userId } = req.body;
         try {
             const user = mockStore.findById(userId);
             if (!user) return res.status(404).json({ message: 'User not found' });
-            if (!user.twoFactorSecret) {
+            if (!user.twoFactorEnabled) {
                 return res.status(400).json({ message: '2FA is not configured for this account' });
             }
-            if (!/^\d{6}$/.test(token)) {
-                return res.status(400).json({ message: 'Enter a valid 6-digit code' });
+            if (isWithinMs(user.mfaEmailOtpLastSentAt, MFA_EMAIL_OTP_RESEND_COOLDOWN_MS)) {
+                return res.status(429).json({ message: 'Please wait before requesting another code' });
             }
 
-            let isValid = false;
-            try {
-                ({ valid: isValid } = verifySync({ token, secret: user.twoFactorSecret }));
-            } catch (_) {
-                return res.status(400).json({ message: 'Invalid or expired verification code' });
+            const code = generateEmailOtpCode();
+            const expiresAt = new Date(Date.now() + MFA_EMAIL_OTP_TTL_MS);
+
+            mockStore.updateUser(user._id, {
+                mfaEmailOtpHash: hashEmailOtp(code),
+                mfaEmailOtpExpires: expiresAt,
+                mfaEmailOtpLastSentAt: new Date(),
+                mfaEmailOtpAttempts: 0,
+            });
+
+            await sendLoginOtpEmail({
+                to: user.email,
+                code,
+                displayName: user.name,
+                expiresInMinutes: Math.floor(MFA_EMAIL_OTP_TTL_MS / 60000),
+            });
+
+            return res.json({ message: `Verification code sent to ${maskEmail(user.email)}` });
+        } catch (error) {
+            return sendAuthError(res, error);
+        }
+    }
+
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ message: dbUnavailableMessage() });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (!user.twoFactorEnabled) {
+            return res.status(400).json({ message: '2FA is not configured for this account' });
+        }
+        if (isWithinMs(user.mfaEmailOtpLastSentAt, MFA_EMAIL_OTP_RESEND_COOLDOWN_MS)) {
+            return res.status(429).json({ message: 'Please wait before requesting another code' });
+        }
+
+        const code = generateEmailOtpCode();
+        user.mfaEmailOtpHash = hashEmailOtp(code);
+        user.mfaEmailOtpExpires = new Date(Date.now() + MFA_EMAIL_OTP_TTL_MS);
+        user.mfaEmailOtpLastSentAt = new Date();
+        user.mfaEmailOtpAttempts = 0;
+        await user.save({ validateBeforeSave: false });
+
+        await sendLoginOtpEmail({
+            to: user.email,
+            code,
+            displayName: user.name,
+            expiresInMinutes: Math.floor(MFA_EMAIL_OTP_TTL_MS / 60000),
+        });
+
+        return res.json({ message: `Verification code sent to ${maskEmail(user.email)}` });
+    } catch (error) {
+        return sendAuthError(res, error);
+    }
+};
+
+const verify2FALogin = async (req, res) => {
+    const rawToken = req.body?.token;
+    const token = rawToken != null ? String(rawToken).replace(/\s/g, '') : '';
+    const method = String(req.body?.method || 'authenticator').toLowerCase();
+    const { userId } = req.body || {};
+
+    if (!userId) {
+        return res.status(400).json({ message: 'userId is required' });
+    }
+    if (!['authenticator', 'email'].includes(method)) {
+        return res.status(400).json({ message: 'Invalid MFA method' });
+    }
+    if (!/^\d{6}$/.test(token)) {
+        return res.status(400).json({ message: 'Enter a valid 6-digit code' });
+    }
+
+    if (isMockMongo()) {
+        const mockStore = require('../utils/mockAuthStore');
+        try {
+            const user = mockStore.findById(userId);
+            if (!user) return res.status(404).json({ message: 'User not found' });
+            if (!user.twoFactorEnabled) {
+                return res.status(400).json({ message: '2FA is not configured for this account' });
             }
 
-            if (!isValid) return res.status(400).json({ message: 'Invalid token' });
+            if (method === 'email') {
+                if (!user.mfaEmailOtpHash || !user.mfaEmailOtpExpires) {
+                    return res.status(400).json({ message: 'Request an email verification code first' });
+                }
+
+                const expiresAtMs = new Date(user.mfaEmailOtpExpires).getTime();
+                if (Number.isNaN(expiresAtMs) || Date.now() > expiresAtMs) {
+                    mockStore.updateUser(user._id, {
+                        mfaEmailOtpHash: undefined,
+                        mfaEmailOtpExpires: undefined,
+                        mfaEmailOtpAttempts: 0,
+                    });
+                    return res.status(400).json({ message: 'Email verification code expired. Request a new code.' });
+                }
+
+                const currentAttempts = Number(user.mfaEmailOtpAttempts || 0);
+                if (currentAttempts >= MFA_EMAIL_OTP_MAX_ATTEMPTS) {
+                    return res.status(429).json({ message: 'Too many attempts. Request a new email code.' });
+                }
+
+                if (hashEmailOtp(token) !== user.mfaEmailOtpHash) {
+                    mockStore.updateUser(user._id, { mfaEmailOtpAttempts: currentAttempts + 1 });
+                    return res.status(400).json({ message: 'Invalid verification code' });
+                }
+
+                mockStore.updateUser(user._id, {
+                    mfaEmailOtpHash: undefined,
+                    mfaEmailOtpExpires: undefined,
+                    mfaEmailOtpAttempts: 0,
+                });
+            } else {
+                if (!user.twoFactorSecret) {
+                    return res.status(400).json({ message: '2FA is not configured for this account' });
+                }
+
+                let isValid = false;
+                try {
+                    ({ valid: isValid } = verifySync({ token, secret: user.twoFactorSecret }));
+                } catch (_) {
+                    return res.status(400).json({ message: 'Invalid or expired verification code' });
+                }
+
+                if (!isValid) return res.status(400).json({ message: 'Invalid token' });
+            }
 
             await securityService.logAction(user._id, 'LOGIN_SUCCESS', req, '2FA Verified');
 
@@ -327,28 +490,59 @@ const verify2FALogin = async (req, res) => {
         }
     }
 
-    const { userId } = req.body;
     try {
         if (mongoose.connection.readyState !== 1) {
             return res.status(503).json({ message: dbUnavailableMessage() });
         }
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
-        if (!user.twoFactorSecret) {
+        if (!user.twoFactorEnabled) {
             return res.status(400).json({ message: '2FA is not configured for this account' });
         }
-        if (!/^\d{6}$/.test(token)) {
-            return res.status(400).json({ message: 'Enter a valid 6-digit code' });
-        }
 
-        let isValid = false;
-        try {
-            ({ valid: isValid } = verifySync({ token, secret: user.twoFactorSecret }));
-        } catch (_) {
-            return res.status(400).json({ message: 'Invalid or expired verification code' });
-        }
+        if (method === 'email') {
+            if (!user.mfaEmailOtpHash || !user.mfaEmailOtpExpires) {
+                return res.status(400).json({ message: 'Request an email verification code first' });
+            }
 
-        if (!isValid) return res.status(400).json({ message: 'Invalid token' });
+            const expiresAtMs = new Date(user.mfaEmailOtpExpires).getTime();
+            if (Number.isNaN(expiresAtMs) || Date.now() > expiresAtMs) {
+                user.mfaEmailOtpHash = undefined;
+                user.mfaEmailOtpExpires = undefined;
+                user.mfaEmailOtpAttempts = 0;
+                await user.save({ validateBeforeSave: false });
+                return res.status(400).json({ message: 'Email verification code expired. Request a new code.' });
+            }
+
+            const currentAttempts = Number(user.mfaEmailOtpAttempts || 0);
+            if (currentAttempts >= MFA_EMAIL_OTP_MAX_ATTEMPTS) {
+                return res.status(429).json({ message: 'Too many attempts. Request a new email code.' });
+            }
+
+            if (hashEmailOtp(token) !== user.mfaEmailOtpHash) {
+                user.mfaEmailOtpAttempts = currentAttempts + 1;
+                await user.save({ validateBeforeSave: false });
+                return res.status(400).json({ message: 'Invalid verification code' });
+            }
+
+            user.mfaEmailOtpHash = undefined;
+            user.mfaEmailOtpExpires = undefined;
+            user.mfaEmailOtpAttempts = 0;
+            await user.save({ validateBeforeSave: false });
+        } else {
+            if (!user.twoFactorSecret) {
+                return res.status(400).json({ message: '2FA is not configured for this account' });
+            }
+
+            let isValid = false;
+            try {
+                ({ valid: isValid } = verifySync({ token, secret: user.twoFactorSecret }));
+            } catch (_) {
+                return res.status(400).json({ message: 'Invalid or expired verification code' });
+            }
+
+            if (!isValid) return res.status(400).json({ message: 'Invalid token' });
+        }
 
         await securityService.logAction(user._id, 'LOGIN_SUCCESS', req, '2FA Verified');
 
@@ -370,7 +564,14 @@ const disable2FA = async (req, res) => {
         try {
             const user = mockStore.findById(req.user._id);
             if (!user) return res.status(404).json({ message: 'User not found' });
-            mockStore.updateUser(req.user._id, { twoFactorEnabled: false, twoFactorSecret: undefined });
+            mockStore.updateUser(req.user._id, {
+                twoFactorEnabled: false,
+                twoFactorSecret: undefined,
+                mfaEmailOtpHash: undefined,
+                mfaEmailOtpExpires: undefined,
+                mfaEmailOtpLastSentAt: undefined,
+                mfaEmailOtpAttempts: 0,
+            });
             return res.json({ message: '2FA disabled' });
         } catch (error) {
             return sendAuthError(res, error);
@@ -385,6 +586,10 @@ const disable2FA = async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
         user.twoFactorEnabled = false;
         user.twoFactorSecret = undefined;
+        user.mfaEmailOtpHash = undefined;
+        user.mfaEmailOtpExpires = undefined;
+        user.mfaEmailOtpLastSentAt = undefined;
+        user.mfaEmailOtpAttempts = 0;
         await user.save();
         res.json({ message: '2FA disabled' });
     } catch (error) {
@@ -596,6 +801,7 @@ module.exports = {
     getUserProfile,
     setup2FA,
     enable2FA,
+    requestEmailMfaCode,
     verify2FALogin,
     disable2FA,
     forgotPassword,

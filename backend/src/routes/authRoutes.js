@@ -7,6 +7,7 @@ const {
     getUserProfile,
     setup2FA,
     enable2FA,
+    requestEmailMfaCode,
     verify2FALogin,
     disable2FA,
     forgotPassword,
@@ -107,6 +108,7 @@ router.post('/login', loginLimiter, loginUser);
  *         description: Verification successful
  */
 router.post('/verify-mfa', loginLimiter, verify2FALogin);
+router.post('/verify-mfa/email/request', loginLimiter, requestEmailMfaCode);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/reset-password', resetPasswordLimiter, resetPassword);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import api from '@/services/api';
 
@@ -17,6 +17,7 @@ export default function ShareAccessPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [passwordRequired, setPasswordRequired] = useState(false);
 
     const getApiMessage = async (err: any) => {
         const response = err?.response;
@@ -48,8 +49,7 @@ export default function ShareAccessPage() {
         return 'shared-file';
     };
 
-    const handleAccess = async (event: React.FormEvent) => {
-        event.preventDefault();
+    const attemptAccess = async (passwordValue: string) => {
         setError(null);
         setMessage(null);
 
@@ -58,11 +58,10 @@ export default function ShareAccessPage() {
             return;
         }
 
-        setLoading(true);
         try {
             const response = await api.post(
                 `/share/access/${token}`,
-                password.trim() ? { password: password.trim() } : {},
+                passwordValue.trim() ? { password: passwordValue.trim() } : {},
                 { responseType: 'blob' }
             );
 
@@ -75,12 +74,19 @@ export default function ShareAccessPage() {
             link.click();
             link.remove();
             window.URL.revokeObjectURL(blobUrl);
+            setPasswordRequired(false);
             setMessage('Download started.');
+            return true;
         } catch (err: any) {
             const status = err?.response?.status;
             const apiMessage = await getApiMessage(err);
-            if (status === 401) {
+            const requiresPassword = Boolean(err?.response?.data?.passwordRequired);
+            if (status === 401 && requiresPassword) {
+                setPasswordRequired(true);
                 setError(apiMessage || 'Password required to access this file.');
+            } else if (status === 401) {
+                setPasswordRequired(true);
+                setError(apiMessage || 'Invalid password');
             } else if (status === 404) {
                 setError(apiMessage || 'Link not found or expired.');
             } else if (status === 410) {
@@ -88,6 +94,21 @@ export default function ShareAccessPage() {
             } else {
                 setError(apiMessage || 'Unable to access shared file.');
             }
+            return false;
+        }
+    };
+
+    useEffect(() => {
+        setError(null);
+        setMessage(null);
+        setPasswordRequired(false);
+    }, [token]);
+
+    const handleAccess = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setLoading(true);
+        try {
+            await attemptAccess(password);
         } finally {
             setLoading(false);
         }
@@ -99,24 +120,28 @@ export default function ShareAccessPage() {
                 <div className="space-y-2">
                     <h1 className="text-2xl font-bold">Share Securely</h1>
                     <p className="text-slate-400 text-sm">
-                        Enter the password if required, then download the shared file.
+                        {passwordRequired
+                            ? 'Enter the password to download the shared file.'
+                            : 'Click download to access the shared file.'}
                     </p>
                 </div>
 
                 <form onSubmit={handleAccess} className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                            Password (optional)
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-primary/50 transition-all font-sans"
-                            placeholder="Enter password if required"
-                            disabled={loading}
-                        />
-                    </div>
+                    {passwordRequired && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-primary/50 transition-all font-sans"
+                                placeholder="Enter password"
+                                disabled={loading}
+                            />
+                        </div>
+                    )}
 
                     {error && (
                         <div className="text-xs rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 px-3 py-2">

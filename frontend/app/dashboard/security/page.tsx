@@ -10,6 +10,7 @@ export default function SecurityPage() {
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [loading, setLoading] = useState(true);
     const [qrCode, setQrCode] = useState<string | null>(null);
+    const [setupSecret, setSetupSecret] = useState<string>('');
     const [verificationToken, setVerificationToken] = useState('');
     const [setupMode, setSetupMode] = useState(false);
 
@@ -32,6 +33,7 @@ export default function SecurityPage() {
         try {
             const { data } = await api.get('/auth/2fa/setup');
             setQrCode(data.qrCodeUrl);
+            setSetupSecret(data.secret || '');
             setSetupMode(true);
         } catch (error: unknown) {
             const ax = error as { response?: { status?: number; data?: { message?: string } } };
@@ -51,6 +53,7 @@ export default function SecurityPage() {
             setTwoFactorEnabled(true);
             setSetupMode(false);
             setQrCode(null);
+            setSetupSecret('');
             setVerificationToken('');
         } catch (error) {
             alert('Invalid token or verification failed.');
@@ -130,12 +133,21 @@ export default function SecurityPage() {
                                         <img
                                             src={qrCode}
                                             alt="2FA setup QR code"
-                                            width={192}
-                                            height={192}
-                                            className="w-48 h-48"
+                                            width={256}
+                                            height={256}
+                                            className="w-56 h-56 md:w-64 md:h-64"
+                                            style={{ imageRendering: 'pixelated' }}
                                         />
                                     </div>
                                     <div className="space-y-6 w-full max-w-xs">
+                                        {setupSecret && (
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Manual Setup Key</p>
+                                                <div className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs break-all text-slate-200">
+                                                    {setupSecret}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="space-y-2">
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Verification Code</label>
                                             <input 
@@ -150,7 +162,15 @@ export default function SecurityPage() {
                                             />
                                         </div>
                                         <div className="flex gap-3">
-                                            <button onClick={() => setSetupMode(false)} className="glass-button flex-1 border-white/10">Cancel</button>
+                                            <button
+                                                onClick={() => {
+                                                    setSetupMode(false);
+                                                    setSetupSecret('');
+                                                }}
+                                                className="glass-button flex-1 border-white/10"
+                                            >
+                                                Cancel
+                                            </button>
                                             <button onClick={handleEnable2FA} className="glass-button bg-primary text-white flex-1">Verify</button>
                                         </div>
                                     </div>
