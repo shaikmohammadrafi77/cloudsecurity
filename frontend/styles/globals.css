@@ -6,13 +6,13 @@
 [data-theme="dark"] {
   --background: 240 10% 3.9%;
   --foreground: 0 0% 98%;
-  --primary: 263.4 70% 50.4%;
+  --primary: 199 89% 57%;
   --primary-foreground: 210 40% 98%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
   --muted-foreground: 240 5% 64.9%;
-  --accent: 243.9 75.8% 58.6%;
+  --accent: 187 86% 44%;
   --accent-foreground: 0 0% 98%;
   --card: 240 10% 4.9%;
   --card-foreground: 0 0% 98%;
@@ -25,13 +25,13 @@
 [data-theme="light"] {
   --background: 0 0% 98%;
   --foreground: 240 10% 10%;
-  --primary: 263.4 70% 50.4%;
+  --primary: 201 90% 48%;
   --primary-foreground: 210 40% 98%;
   --secondary: 220 14% 96%;
   --secondary-foreground: 240 10% 10%;
   --muted: 220 14% 93%;
   --muted-foreground: 220 8% 46%;
-  --accent: 243.9 75.8% 58.6%;
+  --accent: 188 83% 40%;
   --accent-foreground: 0 0% 98%;
   --card: 0 0% 100%;
   --card-foreground: 240 10% 10%;
@@ -57,7 +57,7 @@
   }
 
   .glass-card-hover {
-    @apply glass-card hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-[0_12px_48px_rgba(168,85,247,0.2)];
+    @apply glass-card hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-[0_12px_48px_rgba(56,189,248,0.18)];
   }
 
   .glass-button {
@@ -66,13 +66,13 @@
 
   .glow-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-primary to-accent;
-    text-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 40px rgba(56, 189, 248, 0.28);
   }
 
   .premium-gradient {
-    background: radial-gradient(circle at center, hsla(263, 70%, 50%, 0.15) 0%, transparent 70%),
-                radial-gradient(circle at top right, hsla(243, 75%, 58%, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at bottom left, hsla(280, 70%, 50%, 0.08) 0%, transparent 50%);
+    background: radial-gradient(circle at center, hsla(199, 89%, 57%, 0.15) 0%, transparent 70%),
+                radial-gradient(circle at top right, hsla(187, 86%, 44%, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at bottom left, hsla(160, 84%, 39%, 0.08) 0%, transparent 50%);
   }
 }
 
@@ -87,18 +87,18 @@
 
 .gradient-mesh {
   background-image: 
-    radial-gradient(at 0% 0%, hsla(263, 70%, 50%, 0.2) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(243, 75%, 58%, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsla(280, 70%, 50%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, hsla(243, 75%, 58%, 0.1) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, hsla(199, 89%, 57%, 0.2) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(187, 86%, 44%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(160, 84%, 39%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(210, 90%, 55%, 0.1) 0px, transparent 50%);
 }
 
 [data-theme="light"] .gradient-mesh {
   background-image: 
-    radial-gradient(at 0% 0%, hsla(263, 70%, 50%, 0.12) 0px, transparent 55%),
-    radial-gradient(at 100% 0%, hsla(243, 75%, 58%, 0.08) 0px, transparent 55%),
-    radial-gradient(at 100% 100%, hsla(280, 70%, 50%, 0.06) 0px, transparent 60%),
-    radial-gradient(at 0% 100%, hsla(243, 75%, 58%, 0.06) 0px, transparent 60%);
+    radial-gradient(at 0% 0%, hsla(199, 89%, 57%, 0.12) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, hsla(187, 86%, 44%, 0.08) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, hsla(160, 84%, 39%, 0.06) 0px, transparent 60%),
+    radial-gradient(at 0% 100%, hsla(210, 90%, 55%, 0.06) 0px, transparent 60%);
 }
 
 [data-theme="light"] .glass-card {
@@ -114,8 +114,8 @@
 }
 
 [data-theme="light"] .glass-button {
-  background-color: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.25);
+  background-color: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.25);
 }
 
 

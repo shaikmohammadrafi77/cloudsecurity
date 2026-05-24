@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { generateSecret, generateURI, verifySync } = require('otplib');
 const securityService = require('../services/securityService');
 const { isMongoUnavailable, dbUnavailableMessage } = require('../utils/mongoError');
+const resolveAppUrl = require('../utils/appUrl');
 const { isSmtpConfigured, sendPasswordResetEmail, sendLoginOtpEmail } = require('../utils/mailer');
 
 function sendAuthError(res, error) {
@@ -646,7 +647,7 @@ const forgotPassword = async (req, res) => {
     }
 
     const genericMessage = 'If an account with that email exists, a reset link has been sent.';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = resolveAppUrl();
 
     if (isMockMongo()) {
         const mockStore = require('../utils/mockAuthStore');

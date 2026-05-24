@@ -81,7 +81,7 @@ export default function SharedLinksPage() {
                 <div className="flex justify-end">
                     <button
                         onClick={fetchLinks}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-sm font-semibold"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/30 bg-primary/12 hover:bg-primary/20 text-primary shadow-[0_0_24px_rgba(56,189,248,0.16)] transition-colors text-sm font-semibold"
                     >
                         <RefreshCcw size={16} />
                         Refresh
@@ -142,10 +142,10 @@ export default function SharedLinksPage() {
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <span
-                                                    className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${
+                                                    className={`inline-flex min-w-[108px] items-center justify-center px-3 py-1 rounded-xl border text-xs font-semibold ${
                                                         linkItem.hasPassword
-                                                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                                            ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.12)]'
+                                                            : 'border-red-400/30 bg-red-500/10 text-red-300 shadow-[0_0_18px_rgba(248,113,113,0.12)]'
                                                     }`}
                                                 >
                                                     {linkItem.hasPassword ? 'Password' : 'No Password'}

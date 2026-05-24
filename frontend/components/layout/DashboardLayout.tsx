@@ -307,7 +307,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <p className="text-sm font-bold group-hover/profile:text-primary transition-colors">{displayName}</p>
                                     <p className="text-[10px] text-primary font-bold uppercase tracking-wider">{accountLabel}</p>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-accent to-purple-600 p-[1px] shadow-lg shadow-primary/20 group-hover/profile:scale-105 transition-transform cursor-pointer">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-accent to-emerald-400 p-[1px] shadow-lg shadow-primary/20 group-hover/profile:scale-105 transition-transform cursor-pointer">
                                     <div className="w-full h-full rounded-[14px] bg-background flex items-center justify-center overflow-hidden">
                                         <span className="text-lg font-black text-primary">{initials}</span>
                                     </div>
@@ -399,10 +399,10 @@ function NavItem({ href, icon, label, active = false }: { href: string; icon: Re
             {active && (
                 <motion.div 
                     layoutId="active-nav"
-                    className="absolute inset-0 bg-primary/20 border border-primary/30 rounded-2xl -z-10 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+                    className="absolute inset-0 bg-sky-400/10 border border-sky-300/25 rounded-2xl -z-10 shadow-[0_0_24px_rgba(56,189,248,0.14)]"
                 />
             )}
-            <span className={`${active ? 'text-primary' : 'group-hover:text-primary'} transition-colors`}>
+            <span className={`${active ? 'text-sky-300' : 'group-hover:text-sky-300'} transition-colors`}>
                 {icon}
             </span>
             <span className="font-semibold text-sm tracking-wide">{label}</span>

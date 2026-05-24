@@ -8,6 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const logger = require('./src/utils/logger');
+const resolveAppUrl = require('./src/utils/appUrl');
 
 // Load environment variables
 dotenv.config();
@@ -57,10 +58,12 @@ const globalLimiter = rateLimit({
 app.use(helmet({
     crossOriginResourcePolicy: false,
 }));
-const allowedOrigins = [
+const allowedOrigins = Array.from(new Set([
+    resolveAppUrl(),
     process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
     process.env.NEXT_PUBLIC_FRONTEND_URL,
-].filter(Boolean);
+].filter(Boolean)));
 const corsOptions = {
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.length === 0) {

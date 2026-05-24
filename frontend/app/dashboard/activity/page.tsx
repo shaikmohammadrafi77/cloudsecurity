@@ -33,7 +33,7 @@ export default function ActivityPage() {
             case 'LOGIN_FAILURE': return <Shield className="text-red-500" />;
             case 'FILE_UPLOAD': return <FileCheck className="text-blue-500" />;
             case 'FILE_DOWNLOAD': return <Terminal className="text-amber-500" />;
-            case '2FA_ENABLED': return <Monitor className="text-purple-500" />;
+            case '2FA_ENABLED': return <Monitor className="text-cyan-400" />;
             default: return <History className="text-slate-400" />;
         }
     };

@@ -65,25 +65,25 @@ export default function Dashboard() {
           <DashboardCard
               title="Vault Isolation"
               value={stats.vaultStatus || "Active"}
-              icon={<ShieldCheck className="text-primary w-6 h-6" />}
+              icon={<ShieldCheck className="text-blue-300 w-6 h-6" />}
               href="/dashboard/security"
           />
           <DashboardCard
               title="File Transfers"
               value={stats.transfers || 0}
-              icon={<ArrowRightLeft className="text-blue-400 w-6 h-6" />}
+              icon={<ArrowRightLeft className="text-sky-300 w-6 h-6" />}
               href="/dashboard/files"
           />
           <DashboardCard
               title="Recent Access (24h)"
               value={stats.recentAccess || 0}
-              icon={<Clock className="text-pink-400 w-6 h-6" />}
+              icon={<Clock className="text-cyan-300 w-6 h-6" />}
               href="/dashboard/activity"
           />
           <DashboardCard
               title="Security Level"
               value={stats.securityLevel || "Maximum"}
-              icon={<Lock className="text-green-400 w-6 h-6" />}
+              icon={<Lock className="text-blue-200 w-6 h-6" />}
               href="/dashboard/security"
           />
 
@@ -126,13 +126,13 @@ function DashboardCard({
     href: string;
 }) {
     return (
-        <Link href={href} className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-primary/30 transition-all duration-300 relative overflow-hidden cursor-pointer">
-            <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <Link href={href} className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-blue-400/30 hover:shadow-[0_12px_48px_rgba(59,130,246,0.12)] transition-all duration-300 relative overflow-hidden cursor-pointer">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="relative z-10">
                 <h2 className="text-sm font-medium text-slate-400 mb-2">{title}</h2>
                 <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400 group-hover:to-white transition-all">{value}</h1>
             </div>
-            <div className="relative z-10 w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-lg shadow-black/20">
+            <div className="relative z-10 w-14 h-14 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center group-hover:border-blue-300/20 group-hover:bg-blue-400/10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-lg shadow-black/20">
                 {icon}
             </div>
         </Link>

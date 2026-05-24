@@ -693,7 +693,6 @@ export default function FileExplorer({ isTrash = false }: { isTrash?: boolean })
                                             type="password" 
                                             id="share-password"
                                             name="sharePassword"
-                                            placeholder="Optional password" 
                                             value={shareConfig.password}
                                             onChange={(e) => setShareConfig({ ...shareConfig, password: e.target.value })}
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-primary/50 transition-all font-sans"

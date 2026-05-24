@@ -10,12 +10,13 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 const mockStorageStore = require('../utils/mockStorageStore');
 const mockAuthStore = require('../utils/mockAuthStore');
+const resolveAppUrl = require('../utils/appUrl');
 
 const mockShareLinks = new Map();
 
 const isMockMode = () => process.env.MOCK_MONGO === 'true' || mongoose.connection.readyState !== 1;
 
-const buildShareUrl = (token) => `${process.env.FRONTEND_URL || 'http://localhost:3000'}/share/${token}`;
+const buildShareUrl = (token) => `${resolveAppUrl()}/share/${token}`;
 
 const normalizeMaxDownloads = (value) => {
     const numeric = Number(value);
