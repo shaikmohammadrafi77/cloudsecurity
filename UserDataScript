@@ -1,39 +1,196 @@
 #!/bin/bash
-yum update -y
+set -euo pipefail
 
-# Install Git
-yum install -y git
+exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
 
-# Install Node.js
+APP_NAME="cloudsecurity"
+REPO_URL="https://github.com/shaikmohammadrafi77/cloudsecurity.git"
+APP_DIR="/opt/${APP_NAME}"
+BACKEND_DIR="${APP_DIR}/backend"
+FRONTEND_DIR="${APP_DIR}/frontend"
+BACKEND_PORT="5000"
+FRONTEND_PORT="3000"
+APP_USER="ec2-user"
+
+# Update these values before launching the instance.
+AWS_REGION="us-east-1"
+MONGODB_URI=""
+MOCK_MONGO_ON_FAIL="true"
+JWT_SECRET="CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+ENCRYPTION_KEY="12345678901234567890123456789012"
+AWS_ACCESS_KEY_ID=""
+AWS_SECRET_ACCESS_KEY=""
+AWS_S3_BUCKET=""
+AUTO_CREATE_S3_BUCKET="false"
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM_NAME="Cloudescurity"
+SMTP_FROM_EMAIL=""
+MAX_UPLOAD_MB="50"
+
+escape_env() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+run_as_app_user() {
+  sudo -u "${APP_USER}" -H bash -lc "$1"
+}
+
+get_imds_token() {
+  curl -fsS -X PUT "http://169.254.169.254/latest/api/token" \
+    -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"
+}
+
+get_metadata() {
+  local token="$1"
+  local path="$2"
+  curl -fsS -H "X-aws-ec2-metadata-token: ${token}" \
+    "http://169.254.169.254/latest/meta-data/${path}"
+}
+
+dnf update -y
+dnf install -y git curl gcc-c++ make
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-yum install -y nodejs
+dnf install -y nodejs
 
-# Install PM2
-npm install -g pm2
+if ! swapon --show | grep -q '/swapfile'; then
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
+fi
 
-# Clone Repo
-cd /opt
-git clone https://github.com/shaikmohammadrafi77/cloudsecurity.git
+IMDS_TOKEN="$(get_imds_token)"
+PUBLIC_IP="$(get_metadata "${IMDS_TOKEN}" 'public-ipv4' || true)"
+PRIVATE_IP="$(get_metadata "${IMDS_TOKEN}" 'local-ipv4')"
 
-# Backend Setup
-cd /opt/cloudsecurity/backend
-npm install
+if [ -n "${PUBLIC_IP}" ]; then
+  FRONTEND_URL="http://${PUBLIC_IP}:${FRONTEND_PORT}"
+  API_URL="http://${PUBLIC_IP}:${BACKEND_PORT}/api"
+else
+  FRONTEND_URL="http://${PRIVATE_IP}:${FRONTEND_PORT}"
+  API_URL="http://${PRIVATE_IP}:${BACKEND_PORT}/api"
+fi
 
-# Frontend Setup
-cd /opt/cloudsecurity/frontend
-npm install
+mkdir -p /opt
+if [ ! -d "${APP_DIR}/.git" ]; then
+  git clone "${REPO_URL}" "${APP_DIR}"
+else
+  git -C "${APP_DIR}" pull --ff-only
+fi
 
-# Start Backend
-cd /opt/cloudsecurity/backend
-pm2 start server.js --name backend
+chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
 
-# Build Frontend
-cd /opt/cloudsecurity/frontend
-npm run build
+MONGODB_URI_ESCAPED="$(escape_env "${MONGODB_URI}")"
+MOCK_MONGO_ON_FAIL_ESCAPED="$(escape_env "${MOCK_MONGO_ON_FAIL}")"
+JWT_SECRET_ESCAPED="$(escape_env "${JWT_SECRET}")"
+ENCRYPTION_KEY_ESCAPED="$(escape_env "${ENCRYPTION_KEY}")"
+AWS_ACCESS_KEY_ID_ESCAPED="$(escape_env "${AWS_ACCESS_KEY_ID}")"
+AWS_SECRET_ACCESS_KEY_ESCAPED="$(escape_env "${AWS_SECRET_ACCESS_KEY}")"
+AWS_REGION_ESCAPED="$(escape_env "${AWS_REGION}")"
+AWS_S3_BUCKET_ESCAPED="$(escape_env "${AWS_S3_BUCKET}")"
+AUTO_CREATE_S3_BUCKET_ESCAPED="$(escape_env "${AUTO_CREATE_S3_BUCKET}")"
+SMTP_HOST_ESCAPED="$(escape_env "${SMTP_HOST}")"
+SMTP_PORT_ESCAPED="$(escape_env "${SMTP_PORT}")"
+SMTP_SECURE_ESCAPED="$(escape_env "${SMTP_SECURE}")"
+SMTP_USER_ESCAPED="$(escape_env "${SMTP_USER}")"
+SMTP_PASS_ESCAPED="$(escape_env "${SMTP_PASS}")"
+SMTP_FROM_NAME_ESCAPED="$(escape_env "${SMTP_FROM_NAME}")"
+SMTP_FROM_EMAIL_ESCAPED="$(escape_env "${SMTP_FROM_EMAIL}")"
+MAX_UPLOAD_MB_ESCAPED="$(escape_env "${MAX_UPLOAD_MB}")"
+FRONTEND_URL_ESCAPED="$(escape_env "${FRONTEND_URL}")"
+API_URL_ESCAPED="$(escape_env "${API_URL}")"
 
-# Start Frontend
-pm2 start "npm start" --name frontend
+cat > "${BACKEND_DIR}/.env" <<EOF
+NODE_ENV="production"
+PORT="${BACKEND_PORT}"
+MONGODB_URI="${MONGODB_URI_ESCAPED}"
+MOCK_MONGO_ON_FAIL="${MOCK_MONGO_ON_FAIL_ESCAPED}"
+JWT_SECRET="${JWT_SECRET_ESCAPED}"
+ENCRYPTION_KEY="${ENCRYPTION_KEY_ESCAPED}"
+ENCRYPTION_ALGORITHM="aes-256-cbc"
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_ESCAPED}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_ESCAPED}"
+AWS_REGION="${AWS_REGION_ESCAPED}"
+AWS_S3_BUCKET="${AWS_S3_BUCKET_ESCAPED}"
+AUTO_CREATE_S3_BUCKET="${AUTO_CREATE_S3_BUCKET_ESCAPED}"
+FRONTEND_URL="${FRONTEND_URL_ESCAPED}"
+NEXT_PUBLIC_APP_URL="${FRONTEND_URL_ESCAPED}"
+NEXT_PUBLIC_FRONTEND_URL="${FRONTEND_URL_ESCAPED}"
+SMTP_HOST="${SMTP_HOST_ESCAPED}"
+SMTP_PORT="${SMTP_PORT_ESCAPED}"
+SMTP_SECURE="${SMTP_SECURE_ESCAPED}"
+SMTP_USER="${SMTP_USER_ESCAPED}"
+SMTP_PASS="${SMTP_PASS_ESCAPED}"
+SMTP_FROM_NAME="${SMTP_FROM_NAME_ESCAPED}"
+SMTP_FROM_EMAIL="${SMTP_FROM_EMAIL_ESCAPED}"
+MAX_UPLOAD_MB="${MAX_UPLOAD_MB_ESCAPED}"
+EOF
 
-# Save PM2
-pm2 save
-pm2 startup
+cat > "${FRONTEND_DIR}/.env.production" <<EOF
+NEXT_PUBLIC_API_URL="${API_URL_ESCAPED}"
+NEXT_PUBLIC_FRONTEND_URL="${FRONTEND_URL_ESCAPED}"
+NEXT_PUBLIC_APP_URL="${FRONTEND_URL_ESCAPED}"
+EOF
+
+chown "${APP_USER}:${APP_USER}" "${BACKEND_DIR}/.env" "${FRONTEND_DIR}/.env.production"
+chmod 600 "${BACKEND_DIR}/.env"
+chmod 644 "${FRONTEND_DIR}/.env.production"
+
+run_as_app_user "cd '${BACKEND_DIR}' && npm ci"
+run_as_app_user "cd '${FRONTEND_DIR}' && npm ci"
+run_as_app_user "cd '${FRONTEND_DIR}' && npm run build"
+
+NODE_BIN="$(command -v node)"
+NPM_BIN="$(command -v npm)"
+
+cat > /etc/systemd/system/cloudsecurity-backend.service <<EOF
+[Unit]
+Description=Cloudsecurity backend
+After=network.target
+
+[Service]
+Type=simple
+User=${APP_USER}
+WorkingDirectory=${BACKEND_DIR}
+ExecStart=${NODE_BIN} ${BACKEND_DIR}/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/cloudsecurity-frontend.service <<EOF
+[Unit]
+Description=Cloudsecurity frontend
+After=network.target cloudsecurity-backend.service
+
+[Service]
+Type=simple
+User=${APP_USER}
+WorkingDirectory=${FRONTEND_DIR}
+ExecStart=${NPM_BIN} run start -- --hostname 0.0.0.0 --port ${FRONTEND_PORT}
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable cloudsecurity-backend.service
+systemctl enable cloudsecurity-frontend.service
+systemctl restart cloudsecurity-backend.service
+systemctl restart cloudsecurity-frontend.service
+systemctl is-active --quiet cloudsecurity-backend.service
+systemctl is-active --quiet cloudsecurity-frontend.service
+
+echo "Frontend: ${FRONTEND_URL}"
+echo "Backend: ${API_URL}"

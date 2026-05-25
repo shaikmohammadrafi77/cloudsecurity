@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Sector, Tooltip } from 'recharts';
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { Activity, Cloud, Link2, Lock, Server, ShieldCheck, Users } from 'lucide-react';
 
 type StorageCategory = {
@@ -138,8 +138,6 @@ export default function StorageAnalytics({
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    activeIndex={activeSlice}
-                                    activeShape={renderActiveSlice}
                                     data={pieData}
                                     dataKey="value"
                                     nameKey="name"
@@ -166,9 +164,10 @@ export default function StorageAnalytics({
                                         color: '#f8fafc',
                                     }}
                                     labelStyle={{ color: '#cbd5e1', fontSize: 12 }}
-                                    formatter={(value: number, name: string) => {
-                                        const percentage = pieTotal > 0 ? Math.round((value / pieTotal) * 100) : 0;
-                                        return [`${value} files • ${percentage}%`, name];
+                                    formatter={(value, name) => {
+                                        const numericValue = Number(value ?? 0);
+                                        const percentage = pieTotal > 0 ? Math.round((numericValue / pieTotal) * 100) : 0;
+                                        return [`${numericValue} files (${percentage}%)`, String(name ?? '')];
                                     }}
                                 />
                             </PieChart>
@@ -248,7 +247,7 @@ export default function StorageAnalytics({
                                     color: '#f8fafc',
                                 }}
                                 labelStyle={{ color: '#cbd5e1', fontSize: 12 }}
-                                formatter={(value: number) => [`${value} secure ops`, 'Encrypted sync']}
+                                formatter={(value) => [`${Number(value ?? 0)} secure ops`, 'Encrypted sync']}
                             />
                             <Area
                                 type="monotone"
@@ -298,52 +297,6 @@ export default function StorageAnalytics({
                 />
             </div>
         </div>
-    );
-}
-
-function renderActiveSlice(props: any) {
-    const {
-        cx,
-        cy,
-        innerRadius,
-        outerRadius,
-        startAngle,
-        endAngle,
-        fill,
-        payload,
-    } = props;
-
-    return (
-        <g>
-            <Sector
-                cx={cx}
-                cy={cy}
-                innerRadius={innerRadius}
-                outerRadius={outerRadius + 6}
-                startAngle={startAngle}
-                endAngle={endAngle}
-                fill={fill}
-                cornerRadius={8}
-            />
-            <Sector
-                cx={cx}
-                cy={cy}
-                innerRadius={outerRadius + 10}
-                outerRadius={outerRadius + 14}
-                startAngle={startAngle}
-                endAngle={endAngle}
-                fill={fill}
-                opacity={0.2}
-                cornerRadius={8}
-            />
-            <circle cx={cx} cy={cy} r={innerRadius - 1} fill="rgba(2, 8, 23, 0.6)" stroke="rgba(255,255,255,0.04)" />
-            <text x={cx} y={cy - 8} textAnchor="middle" fill="#e2e8f0" className="text-[10px] uppercase tracking-[0.2em]">
-                Focus
-            </text>
-            <text x={cx} y={cy + 14} textAnchor="middle" fill={fill} className="text-sm font-semibold">
-                {payload?.name}
-            </text>
-        </g>
     );
 }
 
